@@ -26,6 +26,7 @@ https://github.com/adafruit/Adafruit-GFX-Library
 #define TFT_PIN_RST  12
 
 int sig_pin = 16; // touch sensor
+int cdsVal=0;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_PIN_CS, TFT_PIN_DC, TFT_PIN_RST);
 
@@ -68,7 +69,7 @@ void loop() {
   tft.fillScreen(ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE);
   tft.drawRoundRect(15,35,135,40,10,ST77XX_WHITE);
-  
+    
   dt = clock.getDateTime();
   // For leading zero look to DS3231_dateformat example
   Serial.print("Raw data: ");
@@ -105,13 +106,17 @@ void loop() {
   tft.print(':');
   tft.print(dt.minute);
 
-
+  cdsVal=analogRead(0); // input CDS sensor value
+  tft.setCursor(20, 110);
+  tft.setTextSize(1);
+  tft.print("Lighting value : ");
+  tft.print(cdsVal);
 
  Serial.println(digitalRead(sig_pin));
   if(digitalRead(sig_pin))
   {
 
-     tft.setCursor(0, 100);
+     tft.setCursor(0, 80);
      tft.setTextColor(ST77XX_RED);
      tft.setTextSize(2);
      tft.print("Switch ON ! ");
@@ -120,7 +125,7 @@ void loop() {
   else
   {
 
-     tft.setCursor(0, 100);
+     tft.setCursor(0, 80);
      tft.setTextColor(ST77XX_GREEN);
      tft.setTextSize(2);
      tft.print("Switch OFF");
