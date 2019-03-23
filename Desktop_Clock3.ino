@@ -24,11 +24,14 @@ https://github.com/adafruit/Adafruit-GFX-Library
 #define TFT_PIN_CS   15
 #define TFT_PIN_DC   2
 #define TFT_PIN_RST  12
+#define TFT_BACKLIGHT  0 // Display backlight pin
+volatile int state = HIGH;
 
 int sig_pin = 16; // touch sensor
 int cdsVal = 0;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_PIN_CS, TFT_PIN_DC, TFT_PIN_RST);
+
 
 float p = 3.1415926;
 char deg_sym = (char) 176;
@@ -38,25 +41,16 @@ RTCDateTime dt;
 
 void setup(void) {
   Serial.begin(9600);
-  Serial.print(F("Hello! ST77xx TFT Test"));
+
   pinMode(sig_pin,INPUT);
-
-#ifdef ADAFRUIT_HALLOWING
-  // HalloWing is a special case. It uses a ST7735R display just like the
-  // breakout board, but the orientation and backlight control are different.
-  tft.initR(INITR_HALLOWING);        // Initialize HalloWing-oriented screen
+  
+  // Initializer if using a 1.8" TFT screen:
   pinMode(TFT_BACKLIGHT, OUTPUT);
-  digitalWrite(TFT_BACKLIGHT, HIGH); // Backlight on
-#else
-  // Use this initializer if using a 1.8" TFT screen:
+  digitalWrite(TFT_BACKLIGHT, state); // Backlight on
   tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
-#endif
-
-  Serial.println(F("Initialized"));
-
-tft.setRotation(1); //Rotate Display 0=0, 1=90, 2=180, 3=240
-tft.fillScreen(ST77XX_BLACK);
-
+  Serial.println(F("1.8 TFT screen Initialized"));
+  tft.setRotation(1); //Rotate Display 0=0, 1=90, 2=180, 3=240
+  tft.fillScreen(ST77XX_BLACK);
 
   // Initialize DS3231
   Serial.println("Initialize DS3231");
@@ -66,6 +60,8 @@ tft.fillScreen(ST77XX_BLACK);
 }
 
 void loop() {
+  Serial.print("backlight state = ");
+  Serial.println(state);
   tft.fillScreen(ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE);
   tft.drawRoundRect(15,35,135,40,10,ST77XX_WHITE);
@@ -122,8 +118,10 @@ void loop() {
      tft.setTextColor(ST77XX_RED);
      tft.setTextSize(2);
      tft.print("Switch ON ! ");
-
-    }
+     change();
+     digitalWrite(TFT_BACKLIGHT, state); // Backlight on
+     
+  }
   else
   {
 
@@ -144,4 +142,7 @@ void loop() {
 //  delay(500);
 }
 
-
+void change()
+{
+  state = !state;
+}
