@@ -119,8 +119,12 @@ void loop() {
     tft.setFont(&FreeSansBold24pt7b);
     tft.setCursor(10,70);
     tft.print(" ");
+    // Add blank for single digit
+    if (dt.minute < 10){tft.print(" ");}
     tft.print(dt.hour);
     tft.print(':');
+    // Add 0 for single digit
+    if (dt.minute < 10){tft.print("0");}
     tft.print(dt.minute);
   
     tft.setFont(&FreeSansBold9pt7b);
