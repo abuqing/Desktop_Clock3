@@ -57,6 +57,7 @@ https://github.com/adafruit/Adafruit-GFX-Library
 
 
 volatile int state = HIGH;
+volatile int count=0;
 Ticker ticker;
 volatile int state2 = HIGH;
 
@@ -65,43 +66,63 @@ int cdsVal = 0;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_PIN_CS, TFT_PIN_DC, TFT_PIN_RST);
 
-
 DS3231 clock;
 RTCDateTime dt;
 
 void setup(void) {
-//  Serial.begin(9600);
-//  Serial.println("Desktop Clock service start");
+  //  Serial.begin(9600);
+  //  Serial.println("Desktop Clock service start");
   pinMode(sig_pin,INPUT);
   
   // Initializer if using a 1.8" TFT screen:
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, state); // Backlight on
   tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
-//  Serial.println(F("1.8 TFT screen Initialized"));
+  //  Serial.println(F("1.8 TFT screen Initialized"));
   tft.setRotation(1); //Rotate Display 0=0, 1=90, 2=180, 3=240
   tft.fillScreen(ST77XX_BLACK);
  
   // Initialize DS3231
-//  Serial.println("Initialize DS3231");
+  //  Serial.println("Initialize DS3231");
   clock.begin();
   // Set sketch compiling time
 //clock.setDateTime(__DATE__, __TIME__);
   ticker.attach(30, readTempTimer);
-  
-//  Serial.println("Initialize Touch Sensor");
-  attachInterrupt(sig_pin,displayOnOff,RISING);
+
+  //  Serial.println("Initialize Touch Sensor");
+  //  attachInterrupt(sig_pin,displayOnOff,RISING);
     
 }
 
 void loop() {
   //  Serial.print("backlight state = ");
   //  Serial.println(state);
-  digitalWrite(TFT_BACKLIGHT, state);
+ 
+  if (digitalRead(sig_pin) == HIGH) {
+  if (count >= 5){
+    state = !state;
+    digitalWrite(TFT_BACKLIGHT, state);
+    count = 0;
+    delay(1000);
+  }
+    count ++;
     
+  }
+
+  // Reset count after 500 milliseconds
+   static unsigned long last_time =0;
+   if (count == 1){
+    last_time = millis();
+    count ++;
+   }
+   if (millis() - last_time > 500) {
+    count = 0;
+    last_time =0;
+   }
+
+  
   if (state2){
     tft.fillScreen(ST77XX_BLACK);
-//    tft.setTextColor(ST77XX_WHITE);
     tft.setTextColor(GAINSBORO);
     
     tft.drawRoundRect(15,35,135,40,10,GAINSBORO);
@@ -120,7 +141,7 @@ void loop() {
     tft.setCursor(10,70);
     tft.print(" ");
     // Add blank for single digit
-    if (dt.minute < 10){tft.print(" ");}
+    if (dt.hour < 10){tft.print(" ");}
     tft.print(dt.hour);
     tft.print(':');
     // Add 0 for single digit
@@ -177,13 +198,7 @@ void loop() {
     state2 = !state2;
     }
 
-
-  delay(100);
-}
-
-void displayOnOff()
-{
-  state = !state;
+  delay(50);
 }
 
 void readTempTimer()
