@@ -120,6 +120,21 @@ void loop() {
     last_time =0;
    }
 
+  //Automatic brightness adjustment
+  if (state != 0) {
+    if (cdsVal <= 10){
+      analogWrite(TFT_BACKLIGHT, 0);
+     }else if (cdsVal <= 20){
+      analogWrite(TFT_BACKLIGHT, 20);
+     }else if (cdsVal <= 50){
+      analogWrite(TFT_BACKLIGHT, 100);
+     }else if (cdsVal <= 80){
+      analogWrite(TFT_BACKLIGHT, 180);
+     }else {
+      analogWrite(TFT_BACKLIGHT, 255);
+    }
+   }
+
   
   if (state2){
     tft.fillScreen(ST77XX_BLACK);
