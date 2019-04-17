@@ -35,6 +35,13 @@ https://github.com/adafruit/Adafruit-GFX-Library
 #include <DS3231.h>
 #include <Ticker.h>
 
+#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
+
+#define TRIGGER_PIN 16
+
 #include <Fonts/FreeSansBold24pt7b.h>
 #include <Fonts/FreeSansBold18pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
@@ -73,6 +80,7 @@ void setup(void) {
   //  Serial.begin(9600);
   //  Serial.println("Desktop Clock service start");
   pinMode(sig_pin,INPUT);
+  pinMode(TRIGGER_PIN, INPUT);
   
   // Initializer if using a 1.8" TFT screen:
   pinMode(TFT_BACKLIGHT, OUTPUT);
@@ -89,9 +97,42 @@ void setup(void) {
 //clock.setDateTime(__DATE__, __TIME__);
   ticker.attach(30, readTempTimer);
 
-  //  Serial.println("Initialize Touch Sensor");
-  //  attachInterrupt(sig_pin,displayOnOff,RISING);
+  if ( digitalRead(TRIGGER_PIN) == LOW ) {
+    WiFiManager wifiManager;
     
+    //reset settings - for testing
+    //wifiManager.resetSettings();
+    
+    //sets timeout until configuration portal gets turned off
+    //useful to make it all retry or go to sleep
+    wifiManager.setTimeout(180);     //180 seconds
+    
+    tft.setFont(&FreeSansBold9pt7b);
+    tft.setCursor(5, 25);
+    tft.print("WiFi mode ...");
+    
+    if(!wifiManager.autoConnect("AutoConnectAP")){
+    tft.setCursor(0, 50);
+    tft.setTextColor(CRIMSON);
+    tft.println("Failed to connect and hit timeout.");
+    tft.println("Please turn off the power and restart");
+    delay(10000);
+    //reset and try again, or maybe put it to deep sleep
+    //    ESP.reset();
+    ESP.deepSleep(0);
+    delay(5000);
+    }
+    
+    tft.setCursor(5, 50);
+    tft.setTextColor(LIMEGREEN);
+    tft.println("WiFi Connected");
+    tft.print(WiFi.localIP());
+    delay(3000);
+
+    if (digitalRead(sig_pin) == HIGH) {
+    wifiManager.resetSettings();
+    }
+  }
 }
 
 void loop() {
@@ -130,7 +171,7 @@ void loop() {
     
     dt = clock.getDateTime();
     tft.setFont(&FreeSansBold12pt7b);
-    tft.setCursor(5, 25);
+    tft.setCursor(2, 22);
     tft.print(dt.year);
     tft.print('/');
     tft.print(dt.month);
@@ -174,7 +215,7 @@ void loop() {
     tft.print("Lighting : ");
     tft.print(cdsVal);
   
-    tft.setCursor(20, 95);
+    tft.setCursor(20, 92);
     if (clock.readTemperature() > 35){
        tft.setTextColor(CRIMSON);
        tft.print("   Hot !!!");
@@ -194,6 +235,12 @@ void loop() {
     } else {      
         tft.setTextColor(AZURE);
         tft.print("   Freezing");
+    }
+
+   if (WiFi.status() == WL_CONNECTED) {
+    tft.setCursor(120, 30);
+    tft.setTextColor(LIMEGREEN);
+    tft.print("WiFi");
     }
 
 //    Serial.print("Raw data: ");
