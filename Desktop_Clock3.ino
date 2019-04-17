@@ -43,7 +43,7 @@ https://github.com/adafruit/Adafruit-GFX-Library
 #define TFT_PIN_CS   15
 #define TFT_PIN_DC   2
 #define TFT_PIN_RST  12
-#define TFT_BACKLIGHT  16 // Display backlight pin
+#define TFT_BACKLIGHT  0 // Display backlight pin
 
 //Font Color Settings
 #define SLATEGRAY 0x634c
@@ -120,21 +120,6 @@ void loop() {
     last_time =0;
    }
 
-  //Automatic brightness adjustment
-  if (state != 0) {
-    if (cdsVal <= 10){
-      analogWrite(TFT_BACKLIGHT, 0);
-     }else if (cdsVal <= 20){
-      analogWrite(TFT_BACKLIGHT, 20);
-     }else if (cdsVal <= 50){
-      analogWrite(TFT_BACKLIGHT, 100);
-     }else if (cdsVal <= 80){
-      analogWrite(TFT_BACKLIGHT, 180);
-     }else {
-      analogWrite(TFT_BACKLIGHT, 255);
-    }
-   }
-
   
   if (state2){
     tft.fillScreen(ST77XX_BLACK);
@@ -171,6 +156,20 @@ void loop() {
     
     cdsVal = analogRead(A0); // input CDS sensor value
 
+  //Automatic brightness adjustment
+  if (state != 0) {
+    if (cdsVal <= 5){
+//      analogWrite(TFT_BACKLIGHT, 0);
+      state = LOW;
+     }else if (cdsVal <= 20){
+      analogWrite(TFT_BACKLIGHT, 20);
+     }else if (cdsVal <= 80){
+      analogWrite(TFT_BACKLIGHT, 200);
+     }else {
+      analogWrite(TFT_BACKLIGHT, 255);
+    }
+   }
+   
     tft.setCursor(20, 125);
     tft.print("Lighting : ");
     tft.print(cdsVal);
