@@ -28,6 +28,26 @@ Adafruit 1.8" SPI display library
 https://github.com/adafruit/Adafruit-ST7735-Library/
 Adafruit GFX graphics core library
 https://github.com/adafruit/Adafruit-GFX-Library
+
+
+Blynk library here:
+ https://github.com/blynkkk/blynk-library/releases/latest
+
+  Blynk is a platform with iOS and Android apps to control
+  Arduino, Raspberry Pi and the likes over the Internet.
+  You can easily build graphic interfaces for all your
+  projects by simply dragging and dropping widgets.
+
+    Downloads, docs, tutorials: http://www.blynk.cc
+    Sketch generator:           http://examples.blynk.cc
+    Blynk community:            http://community.blynk.cc
+    Follow us:                  http://www.fb.com/blynkapp
+                                http://twitter.com/blynk_app
+V0 = Temperature value
+V1 = Lighting value
+V2 = LED Widget
+
+
  **************************************************************************/
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include <Adafruit_GFX.h>    // Core graphics library
@@ -47,6 +67,7 @@ https://github.com/adafruit/Adafruit-GFX-Library
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
 
 #include <BlynkSimpleEsp8266.h>
+WidgetLED led1(V2);
 
 #define TRIGGER_PIN 16
 
@@ -76,7 +97,7 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_PIN_CS, TFT_PIN_DC, TFT_PIN_RST);
 volatile int state = HIGH;
 volatile int count=0;
 Ticker ticker;
-volatile int state2 = HIGH;
+volatile boolean state2 = true;
 
 int sig_pin = 3; // Touch sensor
 int cdsVal = 0;
@@ -303,7 +324,7 @@ void loop() {
    }
 
   
-  if (state2){
+  if (state2 == true){
     tft.fillScreen(ST77XX_BLACK);
     tft.setTextColor(GAINSBORO);
     
@@ -339,6 +360,7 @@ void loop() {
     cdsVal = analogRead(A0); // input CDS sensor value
 
   //Automatic brightness adjustment
+  if (state != 0) {
     if (cdsVal <= 5){
       //analogWrite(TFT_BACKLIGHT, 0);
       state = LOW;
@@ -349,6 +371,7 @@ void loop() {
      }else {
       analogWrite(TFT_BACKLIGHT, 255);
     }
+  }
    
     tft.setCursor(20, 125);
     tft.print("Lighting : ");
@@ -432,8 +455,15 @@ void setupTime() {
 
 void SendData_blynk() {
   // V0 = Temperature value
-  // V1 = Lighting value
     Blynk.virtualWrite(V0, clockDS.readTemperature());
+  // V1 = Lighting value
     Blynk.virtualWrite(V1, cdsVal);
+  // TFT Display backlight state
+  if (state == 0) {
+    led1.off();
+  } else {
+    led1.on();
+  }
+  
 }
 
