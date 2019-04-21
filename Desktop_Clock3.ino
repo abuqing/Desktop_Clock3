@@ -46,8 +46,11 @@ https://github.com/adafruit/Adafruit-GFX-Library
 
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
 
+#include <BlynkSimpleEsp8266.h>
+
 #define TRIGGER_PIN 16
 
+// Font file for display library
 #include <Fonts/FreeSansBold24pt7b.h>
 #include <Fonts/FreeSansBold18pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
@@ -68,6 +71,7 @@ https://github.com/adafruit/Adafruit-GFX-Library
 #define LIGHTBLUE 0xaebc
 #define AZURE 0xefff
 
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_PIN_CS, TFT_PIN_DC, TFT_PIN_RST);
 
 volatile int state = HIGH;
 volatile int count=0;
@@ -76,8 +80,6 @@ volatile int state2 = HIGH;
 
 int sig_pin = 3; // Touch sensor
 int cdsVal = 0;
-
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_PIN_CS, TFT_PIN_DC, TFT_PIN_RST);
 
 int UTC = 0;
 DS3231 clockDS;
@@ -94,9 +96,11 @@ bool shouldSaveConfig = false;
 
 //callback notifying us of the need to save config
 void saveConfigCallback () {
-  Serial.println("Should save config");
+  tft.println("Should save config");
   shouldSaveConfig = true;
 }
+
+boolean state3 = false; //offline or wifi mode flag
 
 void setup(void) {
   //  Serial.begin(9600);
@@ -108,12 +112,14 @@ void setup(void) {
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, state); // Backlight on
   tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
-  //  Serial.println(F("1.8 TFT screen Initialized"));
   tft.setRotation(1); //Rotate Display 0=0, 1=90, 2=180, 3=240
   tft.fillScreen(ST77XX_BLACK);
+  tft.setTextSize(1);
+  tft.setCursor(0, 0);
+  tft.println(F("1.8 TFT screen Initialized"));
  
   // Initialize DS3231
-  //  Serial.println("Initialize DS3231");
+  tft.println(F("RTC DS3231Initialized"));
   clockDS.begin();
   
   ticker.attach(30, readTempTimer);
@@ -121,9 +127,8 @@ void setup(void) {
   if ( digitalRead(TRIGGER_PIN) == LOW ) {
 
   //Entering WiFi mode
-    tft.setTextSize(1);
-    tft.setCursor(0, 0);
-    tft.println("WiFi mode ...");
+    tft.println("\nWiFi mode ...");
+    state3 = true;
     
     if (SPIFFS.begin()) {
     tft.println("mounted file system");
@@ -208,6 +213,12 @@ void setup(void) {
     strcpy(blynk_token, custom_blynk_token.getValue());
     strcpy(time_zone, custom_time_zone.getValue());
 
+  //still not connected to the Blynk server yet
+  //it will try to connect when it reaches first Blynk.run() or Blynk.connect() call
+//  Blynk.config(custom_blynk_token.getValue(), custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()));
+//  Blynk.config(blynk_token);
+  Blynk.config(blynk_token, mqtt_server, atoi(mqtt_port));
+
   //save the custom parameters to FS
   if (shouldSaveConfig) {
     tft.println("saving config");
@@ -231,9 +242,6 @@ void setup(void) {
     UTC = atoi(time_zone);
     configTime( 3600* UTC, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");
 
-  // Initialize DS3231
-  //  Serial.println("Initialize DS3231");
-    clockDS.begin();
 
   // NTP Servr setting
     setupTime();
@@ -248,8 +256,16 @@ void setup(void) {
     tft.print("mqtt_port : "); tft.println(mqtt_port);
     tft.println("blynk_token :"); tft.println(blynk_token);
     
+//    tft.println("");
+//    if (Blynk.connected()){
+//      tft.setTextColor(LIMEGREEN);
+//      tft.println("Blynk connected !");
+//    } else {
+//      tft.setTextColor(ORANGERED);
+//      tft.println("Blynk connecting failed");
+//    }
+
     delay(5000);
-    
   //Reset WiFi settings with touch switch
     if (digitalRead(sig_pin) == HIGH) {
     wifiManager.resetSettings();
@@ -261,9 +277,10 @@ void setup(void) {
 }
 
 void loop() {
-  //  Serial.print("backlight state = ");
-  //  Serial.println(state);
- 
+  if (state3 == true) {
+    Blynk.run();
+  }
+  
   if (digitalRead(sig_pin) == HIGH) {
   if (count >= 5){
     state = !state;
@@ -272,7 +289,6 @@ void loop() {
     delay(1000);
   }
     count ++;
-    
   }
 
   // Reset count after 500 milliseconds
@@ -323,9 +339,8 @@ void loop() {
     cdsVal = analogRead(A0); // input CDS sensor value
 
   //Automatic brightness adjustment
-  if (state != 0) {
     if (cdsVal <= 5){
-//      analogWrite(TFT_BACKLIGHT, 0);
+      //analogWrite(TFT_BACKLIGHT, 0);
       state = LOW;
      }else if (cdsVal <= 20){
       analogWrite(TFT_BACKLIGHT, 20);
@@ -334,7 +349,6 @@ void loop() {
      }else {
       analogWrite(TFT_BACKLIGHT, 255);
     }
-   }
    
     tft.setCursor(20, 125);
     tft.print("Lighting : ");
@@ -351,7 +365,6 @@ void loop() {
         tft.setTextColor(LIMEGREEN);
         tft.print(" Comfortable");
     } else if (clockDS.readTemperature() > 15){
-//        tft.setTextColor(ST77XX_BLUE);
         tft.setTextColor(DEEPSKYBLUE);
         tft.print("     Cool");
     } else if (clockDS.readTemperature() > 1){
@@ -362,33 +375,28 @@ void loop() {
         tft.print("   Freezing");
     }
 
-   if (WiFi.status() == WL_CONNECTED) {
-    tft.setCursor(120, 30);
-    tft.setTextColor(LIMEGREEN);
-    tft.print("WiFi");
-    }
-
-//    Serial.print("Raw data: ");
-//    Serial.print(dt.year);   Serial.print("-");
-//    Serial.print(dt.month);  Serial.print("-");
-//    Serial.print(dt.day);    Serial.print(" ");
-//    Serial.print(dt.hour);   Serial.print(":");
-//    Serial.print(dt.minute); Serial.print(":");
-//    Serial.print(dt.second); Serial.println("");
-//    Serial.print("Temperature: "); 
-//    Serial.print(clock.readTemperature());
-//    Serial.println(" *C ");
-//    Serial.print("Lighting value : "); 
-//    Serial.println(cdsVal);  
+  if (state3 == true) {
+    if (WiFi.status() == WL_CONNECTED) {
+      tft.setCursor(120, 30);
+      tft.setTextColor(LIMEGREEN);
+      tft.print("WiFi");
+      delay(100);
+      }
+    if (Blynk.connected()){
+      SendData_blynk();
+      tft.setCursor(120, 15);
+      tft.setTextColor(ORANGERED);
+      tft.print("BLK");
+      }
+  }
   
     state2 = !state2;
-    }
+  }
 
   delay(50);
 }
 
-void readTempTimer()
-{
+void readTempTimer() {
  state2 = !state2;
 }
 
@@ -405,7 +413,6 @@ void setupTime() {
     delay(450);
     tft.print(".");
     if(ntpCounter > 99) {
-  //      Serial.println("ShutDown");
       tft.fillScreen(ST77XX_BLACK); tft.setCursor(0, 0);
       tft.setTextColor(CRIMSON);
       tft.println("Failed to connect NTP server.");
@@ -421,15 +428,12 @@ void setupTime() {
   }
   tft.println(""); tft.println("Sync RTC Time from NTP server");
   clockDS.setDateTime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
-   
-//    dt = clockDS.getDateTime();
-//    Serial.print("DS3231 : ");
-//    Serial.print(dt.year);   Serial.print("-");
-//    Serial.print(dt.month);  Serial.print("-");
-//    Serial.print(dt.day);    Serial.print(" ");
-//    Serial.print(dt.hour);   Serial.print(":");
-//    Serial.print(dt.minute); Serial.print(":");
-//    Serial.print(dt.second); Serial.println("");
+}
 
+void SendData_blynk() {
+  // V0 = Temperature value
+  // V1 = Lighting value
+    Blynk.virtualWrite(V0, clockDS.readTemperature());
+    Blynk.virtualWrite(V1, cdsVal);
 }
 
