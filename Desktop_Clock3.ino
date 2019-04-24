@@ -123,6 +123,7 @@ void saveConfigCallback () {
 
 boolean state3 = false; //offline or wifi mode flag
 
+
 void setup(void) {
   //  Serial.begin(9600);
   //  Serial.println("Desktop Clock service start");
@@ -206,25 +207,15 @@ void setup(void) {
     wifiManager.addParameter(&custom_mqtt_port);
     wifiManager.addParameter(&custom_blynk_token);
     wifiManager.addParameter(&custom_time_zone);
-    
-    //sets timeout until configuration portal gets turned off
-    //useful to make it all retry or go to sleep
-    wifiManager.setTimeout(180);     //180 seconds
-     
-    if(!wifiManager.autoConnect("AutoConnectAP")){
-    tft.setTextColor(CRIMSON);
-    tft.println("Failed to connect and hit timeout.");
-    tft.println("Please turn off the power and restart");
-    delay(10000);
-    //reset and try again, or maybe put it to deep sleep
-    //    ESP.reset();
-    ESP.deepSleep(0);
-    delay(5000);
-    }
+
+    //fetches ssid and pass from eeprom and tries to connect
+    //if it does not connect it starts an access point with the specified name
+    //and goes into a blocking loop awaiting configuration
+    wifiManager.autoConnect("myDesktopClock");
 
   // WiFi connected
     tft.setTextColor(LIMEGREEN);
-    tft.println("WiFi Connected");
+    tft.println("\nWiFi Connected");
     tft.setTextColor(ST77XX_WHITE);
     tft.println(WiFi.localIP());
 
@@ -236,9 +227,7 @@ void setup(void) {
 
   //still not connected to the Blynk server yet
   //it will try to connect when it reaches first Blynk.run() or Blynk.connect() call
-//  Blynk.config(custom_blynk_token.getValue(), custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()));
-//  Blynk.config(blynk_token);
-  Blynk.config(blynk_token, mqtt_server, atoi(mqtt_port));
+    Blynk.config(blynk_token, mqtt_server, atoi(mqtt_port));
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
@@ -260,6 +249,7 @@ void setup(void) {
     configFile.close();
     //end save
   }
+    
     UTC = atoi(time_zone);
     configTime( 3600* UTC, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");
 
@@ -272,20 +262,11 @@ void setup(void) {
     tft.setTextColor(LIMEGREEN);
     tft.println("Success update settings");
     tft.setTextColor(ST77XX_WHITE);
-    tft.print("Time Zone : +"); tft.println(time_zone);
+    tft.print("\nTime Zone : +"); tft.println(time_zone);
     tft.print("mqtt_server : "); tft.println(mqtt_server);
     tft.print("mqtt_port : "); tft.println(mqtt_port);
     tft.println("blynk_token :"); tft.println(blynk_token);
     
-//    tft.println("");
-//    if (Blynk.connected()){
-//      tft.setTextColor(LIMEGREEN);
-//      tft.println("Blynk connected !");
-//    } else {
-//      tft.setTextColor(ORANGERED);
-//      tft.println("Blynk connecting failed");
-//    }
-
     delay(5000);
   //Reset WiFi settings with touch switch
     if (digitalRead(sig_pin) == HIGH) {
@@ -293,6 +274,7 @@ void setup(void) {
     tft.setTextColor(ORANGERED);
     tft.print("\nReset WiFi settings");
     delay(5000);
+    state3 = false;
     }
   }
 }
@@ -323,7 +305,7 @@ void loop() {
     last_time =0;
    }
 
-  
+
   if (state2 == true){
     tft.fillScreen(ST77XX_BLACK);
     tft.setTextColor(GAINSBORO);
@@ -357,21 +339,24 @@ void loop() {
     tft.print(clockDS.readTemperature());
     tft.println(" C");
     
-    cdsVal = analogRead(A0); // input CDS sensor value
+
 
   //Automatic brightness adjustment
-  if (state != 0) {
-    if (cdsVal <= 5){
-      //analogWrite(TFT_BACKLIGHT, 0);
-      state = LOW;
-     }else if (cdsVal <= 20){
-      analogWrite(TFT_BACKLIGHT, 20);
-     }else if (cdsVal <= 80){
-      analogWrite(TFT_BACKLIGHT, 200);
-     }else {
-      analogWrite(TFT_BACKLIGHT, 255);
+    cdsVal = analogRead(A0); // input CDS sensor value
+    
+    if (state != 0) {
+      if (cdsVal <= 8){
+        state = 0;
+        digitalWrite(TFT_BACKLIGHT, state);
+        //analogWrite(TFT_BACKLIGHT, 0);
+       }else if (cdsVal <= 20){
+        analogWrite(TFT_BACKLIGHT, 20);
+       }else if (cdsVal <= 60){
+        analogWrite(TFT_BACKLIGHT, 100);
+       }else {
+        digitalWrite(TFT_BACKLIGHT, 1);
+      }
     }
-  }
    
     tft.setCursor(20, 125);
     tft.print("Lighting : ");
@@ -432,25 +417,27 @@ void setupTime() {
   tft.print("Connecting NTP Server.");
   
   int ntpCounter = 0;
-  while (t <= 1000000) {
-    delay(450);
-    tft.print(".");
-    if(ntpCounter > 99) {
-      tft.fillScreen(ST77XX_BLACK); tft.setCursor(0, 0);
-      tft.setTextColor(CRIMSON);
-      tft.println("Failed to connect NTP server.");
-      tft.println("Please turn off the power and restart");
-      delay(3000);
-      ESP.deepSleep(0); delay(5000);
-      }
-    
-    delay(50);
-    t = time(NULL);
-    tm = localtime(&t);
-    ntpCounter++;
-  }
-  tft.println(""); tft.println("Sync RTC Time from NTP server");
-  clockDS.setDateTime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+    while (t <= 1000000) {
+      delay(500);
+      tft.print(".");
+      if(ntpCounter > 60) {
+        tft.fillScreen(ST77XX_BLACK); tft.setCursor(0, 0);
+        tft.setTextColor(CRIMSON);
+        tft.println("\nFailed to connect NTP server.");
+        delay(5000);
+        //ESP.deepSleep(0); delay(5000);
+        break;
+       }
+      delay(50);
+      t = time(NULL);
+      tm = localtime(&t);
+      ntpCounter++;
+    }
+    if (ntpCounter < 60){
+      tft.setTextColor(LIMEGREEN);
+      tft.println(""); tft.println("\nSync RTC Time from NTP server");
+      clockDS.setDateTime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+    }
 }
 
 void SendData_blynk() {
@@ -464,6 +451,5 @@ void SendData_blynk() {
   } else {
     led1.on();
   }
-  
 }
 
