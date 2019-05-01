@@ -102,6 +102,8 @@ volatile boolean state2 = true;
 int sig_pin = 3; // Touch sensor
 int cdsVal = 0;
 
+float calibrationTemp; // Calibation Temperature
+
 int UTC = 0;
 DS3231 clockDS;
 RTCDateTime dt;
@@ -333,10 +335,12 @@ void loop() {
     if (dt.minute < 10){tft.print("0");}
     tft.print(dt.minute);
   
+    calibrationTemp = clockDS.readTemperature() - 2.50;
+
     tft.setFont(&FreeSansBold9pt7b);
     tft.setCursor(20, 110);
     tft.print("Temp : ");
-    tft.print(clockDS.readTemperature());
+    tft.print(calibrationTemp);
     tft.println(" C");
     
 
@@ -363,19 +367,19 @@ void loop() {
     tft.print(cdsVal);
   
     tft.setCursor(20, 92);
-    if (clockDS.readTemperature() > 35){
+    if (calibrationTemp > 35){
        tft.setTextColor(CRIMSON);
        tft.print("   Hot !!!");
-    } else if (clockDS.readTemperature() > 29){
+    } else if (calibrationTemp > 29){
        tft.setTextColor(ORANGERED);
        tft.print("    Warm");
-    } else if (clockDS.readTemperature() > 21){
+    } else if (calibrationTemp > 21){
         tft.setTextColor(LIMEGREEN);
         tft.print(" Comfortable");
-    } else if (clockDS.readTemperature() > 15){
+    } else if (calibrationTemp > 15){
         tft.setTextColor(DEEPSKYBLUE);
         tft.print("     Cool");
-    } else if (clockDS.readTemperature() > 1){
+    } else if (calibrationTemp > 1){
         tft.setTextColor(LIGHTBLUE);
         tft.print("     Cold");
     } else {      
@@ -442,7 +446,7 @@ void setupTime() {
 
 void SendData_blynk() {
   // V0 = Temperature value
-    Blynk.virtualWrite(V0, clockDS.readTemperature());
+    Blynk.virtualWrite(V0, calibrationTemp);
   // V1 = Lighting value
     Blynk.virtualWrite(V1, cdsVal);
   // TFT Display backlight state
