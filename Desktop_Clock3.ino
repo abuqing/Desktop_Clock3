@@ -349,13 +349,13 @@ void loop() {
     cdsVal = analogRead(A0); // input CDS sensor value
     
     if (state != 0) {
-      if (cdsVal <= 8){
+      if (cdsVal <= 50){
         state = 0;
         digitalWrite(TFT_BACKLIGHT, state);
         //analogWrite(TFT_BACKLIGHT, 0);
-       }else if (cdsVal <= 20){
+       }else if (cdsVal <= 300){
         analogWrite(TFT_BACKLIGHT, 20);
-       }else if (cdsVal <= 60){
+       }else if (cdsVal <= 600){
         analogWrite(TFT_BACKLIGHT, 100);
        }else {
         digitalWrite(TFT_BACKLIGHT, 1);
