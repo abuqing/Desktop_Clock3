@@ -349,9 +349,9 @@ void loop() {
     cdsVal = analogRead(A0); // input CDS sensor value
     
     if (state != 0) {
-      if (cdsVal <= 50){
+      if (cdsVal <= 100){
         state = 0;
-        digitalWrite(TFT_BACKLIGHT, state);
+        digitalWrite(TFT_BACKLIGHT, 0);
         //analogWrite(TFT_BACKLIGHT, 0);
        }else if (cdsVal <= 300){
         analogWrite(TFT_BACKLIGHT, 20);
@@ -389,11 +389,20 @@ void loop() {
 
   if (state3 == true) {
     if (WiFi.status() == WL_CONNECTED) {
-      tft.setCursor(120, 30);
-      tft.setTextColor(LIMEGREEN);
-      tft.print("WiFi");
-      delay(100);
+        tft.setCursor(120, 30);
+        tft.setTextColor(LIMEGREEN);
+        tft.print("WiFi");
+        delay(100);
+      } else {
+        tft.setCursor(100, 30);
+        tft.setTextColor(CRIMSON);
+        tft.print("ERROR");
+        delay(10000);
+        ESP.reset(); //Automatic reset if wifi not connected
+        delay(1000);
       }
+
+
     if (Blynk.connected()){
       SendData_blynk();
       tft.setCursor(120, 15);
